@@ -1,4 +1,4 @@
-import {FridaPackingDetector} from "./index";
+import {FridaPackingDetector} from "./index.js";
 
 
 function main() {

@@ -3,11 +3,12 @@
   "version": "1.0.3",
   "type": "module",
   "description": "A general method for detecting packed APKs at runtime",
-  "main": "dist/index.js",
-  "types": "index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "homepage": "https://github.com/poping520/frida-packing-detector",
   "scripts": {
-    "build": "tsc -p ./tsconfig.json",
+    "build": "tsc",
+    "watch": "tsc -w",
     "test": "frida-compile -w -c -o ./dist/test_agent.js ./src/test.ts"
   },
   "keywords": [

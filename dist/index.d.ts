@@ -18,7 +18,6 @@ export declare namespace FridaPackingDetector {
          */
         onError?: (message: string) => void;
     }
-
     /**
      * 注册加固检测
      *

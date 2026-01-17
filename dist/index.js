@@ -170,16 +170,16 @@ export var FridaPackingDetector;
                     }
                     // Call from ActivityThread.handleBindApplication
                     let appInfo = this.getApplicationInfo();
-                    if (appInfo.className == null) {
+                    if (!appInfo.className) {
+                        callback?.onError?.("ApplicationInfo has not 'className' field");
+                        return;
+                    }
+                    if (appInfo.className.value == null) {
                         // 没有自定义 Application，判定未加固
                         callback?.onDetected?.(false);
                     }
                     else {
                         let appClassName = appInfo.className.value;
-                        if (!appClassName) {
-                            callback?.onError?.("Application class is null");
-                            return;
-                        }
                         Logger.info("Application class name: " + appClassName);
                         hookCustomApplication(appClassName, callback);
                     }
