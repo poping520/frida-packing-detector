@@ -8,50 +8,26 @@ A general-purpose Frida library for runtime detection of Android app protection/
 - **Non-signature-based**: does not rely on a protection signature database (no fingerprint matching for specific packer classes/so files/strings).
 - **Runtime decision**: determines whether protection exists and when unpacking / original app loading is completed based on runtime loading order and availability behavior.
 
-## Overview
-
-This library hooks key points in the Android app startup process (e.g. `android.app.LoadedApk.makeApplication`, custom `Application.attachBaseContext/onCreate`, etc.). Early in the app lifecycle, it tries to access the app’s own Activity classes:
-
-- **If, during `Application.attachBaseContext`, the app’s launch Activity (or any Activity) cannot be `Java.use()`’d**, it usually means the original APK/DEX classes have not been fully loaded yet, and the app is likely “protected/packed”.
-- **When, at a later time, the Activity classes can be loaded normally**, it is considered “unpacked / original app loaded”, and `onUnpacked` is triggered.
-
-> Note: this is a “generic runtime behavior detection approach” and is not guaranteed to be 100% accurate in all environments (e.g. extreme class-loading strategies, multi-process apps, plugin frameworks, etc.).
-
-## Installation
-
-As a project dependency (during development/build):
-
-```bash
-npm i
-```
-
-## Build
-
-- **build**: compile the library to `dist/index.js`
-- **test**: compile the test agent to `dist/test_agent.js`
-
-```bash
-npm run build
-npm run test
-```
-
 ## Quick start (in your Frida Agent)
 
-You can directly refer to `src/test.ts`.
+Install the dependency in your project:
+```bash
+npm i frida-packing-detector
+```
 
-Core API: `FridaPackingDetector.register(callback, isLogging?)`
+API: `FridaPackingDetector.register(callback, isLogging?)`
 
-- `callback.onDetected(isProtected)`: triggered when protection status is detected (`true` means likely protected, `false` means not protected)
-- `callback.onUnpacked()`: if likely protected, triggered later when the original app is detected as loaded / unpacking completed
+- `callback.onDetected(isProtected)`: triggered when protection status is detected (`true` means protected/packed, `false` means not protected)
+- `callback.onUnpacked()`: if protected/packed, triggered later when the original app is detected as loaded / unpacking completed
 - `callback.onError(message)`: triggered when an error occurs
 
-Example (pseudo code; structure is consistent with `src/test.ts`):
+Example:
 
 ```ts
 import {FridaPackingDetector} from "frida-packing-detector";
 
 function onAppReady() {
-  // Put your business logic here (at this time it is more likely that app classes are stably accessible)
+  // Put your business logic here (at this time app classes should be stably accessible)
 }
 
 FridaPackingDetector.register(
@@ -72,9 +48,18 @@ FridaPackingDetector.register(
 );
 ```
 
+## Overview
+
+This library hooks key points in the Android app startup process (e.g. `android.app.LoadedApk.makeApplication`, custom `Application.attachBaseContext/onCreate`, etc.). Early in the app lifecycle, it tries to access the app’s own Activity classes:
+
+- **If, during `Application.attachBaseContext`, the app’s launch Activity (or any Activity) cannot be `Java.use()`’d**, it usually means the original APK/DEX classes have not been fully loaded yet, and the app is considered “protected/packed”.
+- **When, at a later time, the Activity classes can be loaded normally**, it is considered “unpacked / original app loaded”, and `onUnpacked` is triggered.
+
+> Note: this is a “generic runtime behavior detection approach” and is not guaranteed to be 100% accurate in all environments (e.g. extreme class-loading strategies, multi-process apps, plugin frameworks, etc.).
+
 ## Limitations
 
-- **No packer type identification**: only provides a generic decision for “likely protected” and “when unpacking is completed”.
+- **No packer type identification**: only provides a generic decision for “protected/packed” and “when unpacking is completed”.
 - **Complex app architectures may affect results**: e.g. pluginization, hotfix frameworks, dynamic multi-dex loading, differences in multi-process startup paths, etc.
 
 ## Disclaimer
