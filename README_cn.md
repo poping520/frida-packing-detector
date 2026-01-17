@@ -1,4 +1,4 @@
-# frida-shell-detector
+# frida-packing-detector
  
 [English](README.md) | 中文
  
@@ -39,7 +39,7 @@ npm run test
 
 你可以直接参考 `src/test.ts`。
 
-核心 API：`FridaShellDetector.register(callback, isLogging?)`
+核心 API：`FridaPackingDetector.register(callback, isLogging?)`
 
 - `callback.onDetected(isProtected)`：检测到加固状态时触发（`true` 表示疑似加固，`false` 表示未加固）
 - `callback.onUnpacked()`：疑似加固时，后续检测到原始应用已加载/解包完成时触发
@@ -48,13 +48,13 @@ npm run test
 示例（伪代码，结构与 `src/test.ts` 一致）：
 
 ```ts
-import { FridaShellDetector } from "./index";
+import {FridaPackingDetector} from "frida-packing-detector";
 
 function onAppReady() {
   // 在这里写你的业务逻辑（此时更可能已经能稳定访问到应用类）
 }
 
-FridaShellDetector.register(
+FridaPackingDetector.register(
   {
     onDetected(isProtected) {
       console.log("检测到加固情况：" + isProtected);
@@ -66,7 +66,7 @@ FridaShellDetector.register(
       onAppReady();
     },
     onError(message) {
-      console.error("FridaShellDetector error occurred: " + message);
+      console.error("FridaPackingDetector error occurred: " + message);
     },
   }
 );

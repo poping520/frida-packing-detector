@@ -1,25 +1,25 @@
-# frida-shell-detector
+# frida-packing-detector
 
 English | [中文](README_cn.md)
 
-A general-purpose Frida library for runtime protection/packing detection in Android APKs.
+A general-purpose Frida library for runtime detection of Android app protection/packing.
 
-- **Generic**: Not targeting any specific vendor or protection solution.
-- **Non-signature based**: Does not rely on a protection signature database (no fingerprint matching of specific shell classes/so/strings).
-- **Runtime decision**: Determines whether protection exists and when unpacking / original app loading is completed based on runtime load timing and availability behavior.
+- **Generic**: not targeting any specific vendor or protection scheme.
+- **Non-signature-based**: does not rely on a protection signature database (no fingerprint matching for specific packer classes/so files/strings).
+- **Runtime decision**: determines whether protection exists and when unpacking / original app loading is completed based on runtime loading order and availability behavior.
 
 ## Overview
 
-This library hooks key points during Android app startup (e.g. `android.app.LoadedApk.makeApplication`, custom `Application.attachBaseContext/onCreate`, etc.). Early in the application lifecycle, it tries to access the app’s own Activity classes:
+This library hooks key points in the Android app startup process (e.g. `android.app.LoadedApk.makeApplication`, custom `Application.attachBaseContext/onCreate`, etc.). Early in the app lifecycle, it tries to access the app’s own Activity classes:
 
-- If the launcher Activity (or any Activity) **cannot be loaded via `Java.use()` during `Application.attachBaseContext`**, it usually indicates that classes have not been fully loaded from the original APK/DEX yet, and it tends to be judged as **“protected/packed”**.
-- When, at a later time, the Activity classes can be loaded normally, it is considered **“unpacked / original app loaded”**, and `onUnpacked` will be triggered.
+- **If, during `Application.attachBaseContext`, the app’s launch Activity (or any Activity) cannot be `Java.use()`’d**, it usually means the original APK/DEX classes have not been fully loaded yet, and the app is likely “protected/packed”.
+- **When, at a later time, the Activity classes can be loaded normally**, it is considered “unpacked / original app loaded”, and `onUnpacked` is triggered.
 
-> Note: This is a “generic runtime behavior detection approach” and does not guarantee 100% accuracy in all environments (e.g. extreme class loading strategies, multi-process, plugin frameworks, etc.).
+> Note: this is a “generic runtime behavior detection approach” and is not guaranteed to be 100% accurate in all environments (e.g. extreme class-loading strategies, multi-process apps, plugin frameworks, etc.).
 
 ## Installation
 
-As a project dependency (development/build time):
+As a project dependency (during development/build):
 
 ```bash
 npm i
@@ -27,34 +27,34 @@ npm i
 
 ## Build
 
-- **build**: Compile the library to `dist/index.js`
-- **test**: Compile the test agent to `dist/test_agent.js`
+- **build**: compile the library to `dist/index.js`
+- **test**: compile the test agent to `dist/test_agent.js`
 
 ```bash
 npm run build
 npm run test
 ```
 
-## Quick Start (in your Frida Agent)
+## Quick start (in your Frida Agent)
 
 You can directly refer to `src/test.ts`.
 
-Core API: `FridaShellDetector.register(callback, isLogging?)`
+Core API: `FridaPackingDetector.register(callback, isLogging?)`
 
-- `callback.onDetected(isProtected)`: Triggered when the protection status is detected (`true` means suspected protection, `false` means not protected)
-- `callback.onUnpacked()`: If protection is suspected, triggered later when the original app is detected as loaded / unpacking completed
-- `callback.onError(message)`: Triggered when an error occurs
+- `callback.onDetected(isProtected)`: triggered when protection status is detected (`true` means likely protected, `false` means not protected)
+- `callback.onUnpacked()`: if likely protected, triggered later when the original app is detected as loaded / unpacking completed
+- `callback.onError(message)`: triggered when an error occurs
 
-Example (pseudo-code, same structure as `src/test.ts`):
+Example (pseudo code; structure is consistent with `src/test.ts`):
 
 ```ts
-import { FridaShellDetector } from "./index";
+import {FridaPackingDetector} from "frida-packing-detector";
 
 function onAppReady() {
-  // Put your business logic here (at this time it is more likely that app classes are reliably accessible)
+  // Put your business logic here (at this time it is more likely that app classes are stably accessible)
 }
 
-FridaShellDetector.register(
+FridaPackingDetector.register(
   {
     onDetected(isProtected) {
       console.log("Protection detected: " + isProtected);
@@ -66,7 +66,7 @@ FridaShellDetector.register(
       onAppReady();
     },
     onError(message) {
-      console.error("FridaShellDetector error occurred: " + message);
+      console.error("FridaPackingDetector error occurred: " + message);
     },
   }
 );
@@ -74,8 +74,8 @@ FridaShellDetector.register(
 
 ## Limitations
 
-- **No shell type identification**: Only performs generic decisions for “suspected protection” and “when unpacking is completed”.
-- **Complex app architectures may affect results**: e.g. pluginization, hotfix frameworks, dynamic multi-dex loading, multi-process startup path differences, etc.
+- **No packer type identification**: only provides a generic decision for “likely protected” and “when unpacking is completed”.
+- **Complex app architectures may affect results**: e.g. pluginization, hotfix frameworks, dynamic multi-dex loading, differences in multi-process startup paths, etc.
 
 ## Disclaimer
 

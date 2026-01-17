@@ -33,7 +33,7 @@ function main() {
             onAppReady();
         },
         onError: function (message) {
-            console.error("FridaShellDetector error occurred: " + message);
+            console.error("FridaPackingDetector error occurred: " + message);
         }
     });
 }

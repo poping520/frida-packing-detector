@@ -144,7 +144,7 @@ export namespace FridaPackingDetector {
                     if (tryJavaUse(className) != null) {
                         callback?.onUnpacked?.();
                     } else {
-                        callback?.onError?.("Shell not unpacked yet in Application.onCreate");
+                        callback?.onError?.("APK not unpacked yet in Application.onCreate");
                     }
                 }
             });

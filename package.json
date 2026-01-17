@@ -1,6 +1,6 @@
 {
   "name": "frida-packing-detector",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "description": "A general method for detecting packed APKs at runtime",
   "main": "dist/index.js",
