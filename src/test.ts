@@ -35,7 +35,7 @@ function main() {
         onError: function (message) {
             console.error("FridaPackingDetector error occurred: " + message);
         }
-    });
+    },true);
 }
 
 

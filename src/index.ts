@@ -134,7 +134,7 @@ export namespace FridaPackingDetector {
 
         const Application = tryJavaUse(className);
         if (!Application) {
-            callback?.onError?.("Can't find application class: " + className);
+            callback.onError?.("Can't find application class: " + className);
             return;
         }
 
@@ -142,9 +142,9 @@ export namespace FridaPackingDetector {
             registerJavaMethodHook(Application.onCreate, {
                 onEnter: function () {
                     if (tryJavaUse(className) != null) {
-                        callback?.onUnpacked?.();
+                        callback.onUnpacked?.();
                     } else {
-                        callback?.onError?.("APK not unpacked yet in Application.onCreate");
+                        callback.onError?.("APK not unpacked yet in Application.onCreate");
                     }
                 }
             });
@@ -161,7 +161,7 @@ export namespace FridaPackingDetector {
                 }
 
                 if (!testActivityClassName) {
-                    callback?.onError?.("Can't find any activity class");
+                    callback.onError?.("Can't find any activity class");
                     return;
                 }
 
@@ -172,17 +172,17 @@ export namespace FridaPackingDetector {
                     // 在 Application attachBaseContext 之前
                     // 无法创建 LaunchActivity / AnyActivity 类，判定为加固
                     this.isPacked = true;
-                    callback?.onDetected?.(true);
+                    callback.onDetected?.(true);
                 } else {
                     // 判定为未加固
-                    callback?.onDetected?.(false);
+                    callback.onDetected?.(false);
                 }
             },
             onLeave: function () {
                 if (!this.isPacked) return;
 
                 if (tryJavaUse(this.testActivityClassName) != null) {
-                    callback?.onUnpacked?.();
+                    callback.onUnpacked?.();
                 } else {
                     // hook Application onCreate
                     hookOnCreate(this.testActivityClassName);
@@ -206,34 +206,39 @@ export namespace FridaPackingDetector {
 
             const LoadedApk = tryJavaUse("android.app.LoadedApk");
             if (!LoadedApk) {
-                callback?.onError?.("Can't find class: android.app.LoadedApk");
+                callback.onError?.("Can't find class: android.app.LoadedApk");
                 return;
             }
 
+            if (!LoadedApk.makeApplication) {
+                callback.onError?.("Can't find method: android.app.LoadedApk.makeApplication");
+                return;
+            }
 
             /*
-             * class LoadApk:
+             * class android.app.LoadedApk:
              *     public Application makeApplication(boolean forceDefaultAppClass, Instrumentation instrumentation);
-             *
              *     public ApplicationInfo getApplicationInfo();
              */
             registerJavaMethodHook(LoadedApk.makeApplication, {
                 onEnter: function (args) {
-                    if (args[1] != null) {
-                        // Call from ActivityThread.performLaunchActivity
+                    // Call from ActivityThread.performLaunchActivity
+                    // Call from ActivityThread.handleBindApplication
+
+                    if ((callback as any)["__makeApplication_once__"]) {
                         return;
                     }
+                    (callback as any)["__makeApplication_once__"] = true;
 
-                    // Call from ActivityThread.handleBindApplication
-                    let appInfo = this.getApplicationInfo()
+                    let appInfo = this.getApplicationInfo();
                     if (!appInfo.className) {
-                        callback?.onError?.("ApplicationInfo has not 'className' field");
+                        callback.onError?.("ApplicationInfo has not 'className' field");
                         return;
                     }
 
                     if (appInfo.className.value == null) {
                         // 没有自定义 Application，判定未加固
-                        callback?.onDetected?.(false);
+                        callback.onDetected?.(false);
                     } else {
                         let appClassName = appInfo.className.value;
                         Logger.info("Application class name: " + appClassName);
@@ -241,6 +246,6 @@ export namespace FridaPackingDetector {
                     }
                 }
             });
-        })
+        });
     }
 }
