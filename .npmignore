@@ -1,5 +1,6 @@
 .idea/
 .vscode/
+dist/test_agent.js
 src/
 node_modules/
 .gitignore
