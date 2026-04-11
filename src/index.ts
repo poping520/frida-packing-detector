@@ -66,6 +66,87 @@ export namespace FridaPackingDetector {
         onLeave?: ((this: Java.Wrapper, args: Java.Wrapper[], retval: Java.Wrapper) => void) | undefined;
     }
 
+    /**
+     * Mirrors LoadedApk.makeApplicationInner resolution (Android 13+ / API 33+):
+     * ApplicationInfo#getCustomApplicationClassNameForProcess first, else {@link ApplicationInfo#className}.
+     * @see https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/app/LoadedApk.java
+     */
+    function resolveApplicationClassNameFromApplicationInfo(appInfo: Java.Wrapper): string | null {
+        try {
+            const Process = Java.use("android.os.Process");
+            const processName = Process.myProcessName();
+            const perProcess = appInfo.getCustomApplicationClassNameForProcess(processName);
+            if (perProcess != null) {
+                const s = String(perProcess);
+                if (s.length > 0) {
+                    return s;
+                }
+            }
+        } catch (e) {
+            Logger.warn("getCustomApplicationClassNameForProcess failed: " + e);
+        }
+
+        try {
+            if (appInfo.className != null && appInfo.className.value != null) {
+                return appInfo.className.value as string;
+            }
+        } catch {
+            /* ignore */
+        }
+        return null;
+    }
+
+    /**
+     * From Android 13 (API 33), ActivityThread binds the app via
+     * LoadedApk#makeApplicationInner(boolean, Instrumentation), not makeApplication().
+     * Hooking only makeApplication therefore never runs on modern devices.
+     * @see ActivityThread in android-13.0.0_r1 / android-15.0.0_r1 (AOSP)
+     */
+    function registerLoadedApkApplicationHook(LoadedApk: Java.Wrapper, callback: DetectCallback): void {
+        const onEnterMakeApplication = function (this: Java.Wrapper) {
+            if ((callback as any)["__makeApplication_once__"]) {
+                return;
+            }
+            (callback as any)["__makeApplication_once__"] = true;
+
+            const appInfo = this.getApplicationInfo();
+            const appClassName = resolveApplicationClassNameFromApplicationInfo(appInfo);
+
+            if (appClassName == null) {
+                callback.onDetected?.(false);
+                return;
+            }
+
+            Logger.info("Application class name: " + appClassName);
+            hookCustomApplication(appClassName, callback);
+        };
+
+        const la = LoadedApk as Java.Wrapper & {
+            makeApplicationInner?: { overload: (...args: string[]) => Java.Method };
+        };
+
+        try {
+            if (la.makeApplicationInner) {
+                const inner = la.makeApplicationInner.overload("boolean", "android.app.Instrumentation");
+                registerJavaMethodHook(inner, { onEnter: onEnterMakeApplication });
+                Logger.info("Hooked LoadedApk.makeApplicationInner(boolean, Instrumentation)");
+                return;
+            }
+        } catch (e) {
+            Logger.warn("makeApplicationInner hook failed, will try makeApplication: " + e);
+        }
+
+        if (!LoadedApk.makeApplication) {
+            callback.onError?.(
+                "Can't find method: android.app.LoadedApk.makeApplication (and makeApplicationInner unavailable)",
+            );
+            return;
+        }
+
+        registerJavaMethodHook(LoadedApk.makeApplication, { onEnter: onEnterMakeApplication });
+        Logger.info("Hooked LoadedApk.makeApplication(boolean, Instrumentation)");
+    }
+
     function registerJavaMethodHook(
         method: Java.Method,
         callback: JavaMethodHookCallback,
@@ -202,7 +283,7 @@ export namespace FridaPackingDetector {
             Logger.setEnabled(true);
         }
 
-        Java.perform(function () {
+        Java.performNow(function () {
 
             const LoadedApk = tryJavaUse("android.app.LoadedApk");
             if (!LoadedApk) {
@@ -210,42 +291,7 @@ export namespace FridaPackingDetector {
                 return;
             }
 
-            if (!LoadedApk.makeApplication) {
-                callback.onError?.("Can't find method: android.app.LoadedApk.makeApplication");
-                return;
-            }
-
-            /*
-             * class android.app.LoadedApk:
-             *     public Application makeApplication(boolean forceDefaultAppClass, Instrumentation instrumentation);
-             *     public ApplicationInfo getApplicationInfo();
-             */
-            registerJavaMethodHook(LoadedApk.makeApplication, {
-                onEnter: function (args) {
-                    // Call from ActivityThread.performLaunchActivity
-                    // Call from ActivityThread.handleBindApplication
-
-                    if ((callback as any)["__makeApplication_once__"]) {
-                        return;
-                    }
-                    (callback as any)["__makeApplication_once__"] = true;
-
-                    let appInfo = this.getApplicationInfo();
-                    if (!appInfo.className) {
-                        callback.onError?.("ApplicationInfo has not 'className' field");
-                        return;
-                    }
-
-                    if (appInfo.className.value == null) {
-                        // 没有自定义 Application，判定未加固
-                        callback.onDetected?.(false);
-                    } else {
-                        let appClassName = appInfo.className.value;
-                        Logger.info("Application class name: " + appClassName);
-                        hookCustomApplication(appClassName, callback);
-                    }
-                }
-            });
+            registerLoadedApkApplicationHook(LoadedApk, callback);
         });
     }
 }

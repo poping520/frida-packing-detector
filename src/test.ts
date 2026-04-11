@@ -36,7 +36,9 @@ function main() {
             console.error("FridaPackingDetector error occurred: " + message);
         }
     },true);
+
+    console.log("Test FridaPackingDetector")
 }
 
-
-setImmediate(main)
+// 直接调用，在应用启动时，立马触发 FridaPackingDetector 回调
+main();
