@@ -72,26 +72,29 @@ export namespace FridaPackingDetector {
      * @see https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/app/LoadedApk.java
      */
     function resolveApplicationClassNameFromApplicationInfo(appInfo: Java.Wrapper): string | null {
-        try {
-            const Process = Java.use("android.os.Process");
-            const processName = Process.myProcessName();
-            const perProcess = appInfo.getCustomApplicationClassNameForProcess(processName);
-            if (perProcess != null) {
-                const s = String(perProcess);
-                if (s.length > 0) {
-                    return s;
+        
+        if (appInfo.getCustomApplicationClassNameForProcess) {
+            try {
+                const Process = Java.use("android.os.Process");
+                const processName = Process.myProcessName();
+                const perProcess = appInfo.getCustomApplicationClassNameForProcess(processName);
+                if (perProcess != null) {
+                    const s = String(perProcess);
+                    if (s.length > 0) {
+                        return s;
+                    }
                 }
+            } catch (e) {
+                Logger.warn("getCustomApplicationClassNameForProcess failed: " + e);
             }
-        } catch (e) {
-            Logger.warn("getCustomApplicationClassNameForProcess failed: " + e);
         }
 
         try {
             if (appInfo.className != null && appInfo.className.value != null) {
                 return appInfo.className.value as string;
             }
-        } catch {
-            /* ignore */
+        } catch (e) {
+            Logger.warn("className access failed: " + e);
         }
         return null;
     }
@@ -239,9 +242,14 @@ export namespace FridaPackingDetector {
             (callback as any)["__makeApplication_once__"] = true;
 
             const appInfo = this.getApplicationInfo();
-            const appClassName = resolveApplicationClassNameFromApplicationInfo(appInfo);
+            if (!appInfo) {
+                callback.onError?.("Can't get application info");
+                return;
+            }
 
+            const appClassName = resolveApplicationClassNameFromApplicationInfo(appInfo);
             if (appClassName == null) {
+                Logger.info("Call onDetected (has no custom application)");
                 callback.onDetected?.(false);
                 return;
             }
